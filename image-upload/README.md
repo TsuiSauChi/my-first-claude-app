@@ -17,14 +17,25 @@ upload → 15 MB limit → decode & verify with Pillow (client Content-Type is i
 
 ## Run
 
+You need Python 3.9 or newer. Run these commands from the `image-upload` folder:
+
 ```bash
+cd image-upload
+
+# 1. Create a virtual environment and install the dependencies
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
+
+# 2. (Optional) Run the tests
 .venv/bin/pytest
+
+# 3. Start the server
 .venv/bin/uvicorn app.main:app --reload
 ```
 
-To try it, open http://localhost:8000, or upload from the command line:
+On Windows, use `.venv\Scripts\` in place of `.venv/bin/`.
+
+To try it, open http://localhost:8000 in your browser and pick an image to upload, or upload from the command line:
 
 ```bash
 curl -F file=@photo.jpg http://localhost:8000/upload
