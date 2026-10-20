@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Uploaded images (created at runtime)
+image-upload/storage/
+
+# Local Claude Code settings
+.claude/settings.local.json
