@@ -5,29 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rain Check</title>
 <script>
-  // Apply the saved or OS theme before first paint so the page never flashes the wrong one
-  (function () {
-    var saved = null;
-    try { saved = localStorage.getItem("rc-theme"); } catch (e) {}
-    if (saved !== "light" && saved !== "dark" && saved !== "pink") {
-      saved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
-    document.documentElement.dataset.theme = saved;
-  })();
+  // Theme helpers, shared with the theme switch script at the end of the page.
+  // Only the three known names count as a saved choice; anything else falls back to the OS.
+  var THEMES = ["light", "dark", "pink"];
+  function savedTheme() {
+    try {
+      var t = localStorage.getItem("rc-theme");
+      return THEMES.indexOf(t) >= 0 ? t : null;
+    } catch (e) { return null; }
+  }
+  function osTheme() {
+    try { return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }
+    catch (e) { return "light"; }
+  }
+  // Apply the theme before first paint so the page never flashes the wrong one
+  document.documentElement.dataset.theme = savedTheme() || osTheme();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: station-log header, summary strip, filter bar, responsive grid of capital-city readings */
+/* Ground and accent of each theme, named so the theme switch swatches preview the real palettes */
+:root {
+  --light-ground: #f3f6f9;
+  --light-accent: #1d65a6;
+  --dark-ground: #0f161d;
+  --dark-accent: #6cb4f0;
+  --pink-ground: #fdf1f5;
+  --pink-accent: #b8336a;
+}
 /* Light palette: the dark theme's slate-blue hue with lightness flipped; all text pairs pass WCAG AA */
 :root {
   color-scheme: light;
-  --ground: #f3f6f9;
+  --ground: var(--light-ground);
   --panel: #ffffff;
   --ink: #16212b;
   --muted: #52616e;
   --line: #d3dce4;
-  --accent: #1d65a6;
+  --accent: var(--light-accent);
   --rain: #1a5f9e;
   --rain-bg: #deedf9;
   --snow: #4f42a3;
@@ -40,15 +55,16 @@
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
 }
-/* Dark palette: set by the header toggle, or by the OS when no choice is saved */
+/* Dark palette: set by the theme switch, or by the OS when no choice is saved
+   (the script in <head> always sets data-theme, so no prefers-color-scheme copy is needed) */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ground: #0f161d;
+  --ground: var(--dark-ground);
   --panel: #17212b;
   --ink: #e4ebf1;
   --muted: #93a3b1;
   --line: #2a3744;
-  --accent: #6cb4f0;
+  --accent: var(--dark-accent);
   --rain: #7fc0f5;
   --rain-bg: #173450;
   --snow: #b6abf5;
@@ -61,12 +77,12 @@
 /* Pink palette: rose-tinted light theme; weather colors keep their meaning, all text pairs pass WCAG AA */
 :root[data-theme="pink"] {
   color-scheme: light;
-  --ground: #fdf1f5;
+  --ground: var(--pink-ground);
   --panel: #ffffff;
   --ink: #2d1621;
   --muted: #7a4a5f;
   --line: #f0d2de;
-  --accent: #b8336a;
+  --accent: var(--pink-accent);
   --rain: #1d5c96;
   --rain-bg: #e4eefa;
   --snow: #5a3fa3;
@@ -75,25 +91,6 @@
   --storm-bg: #fce5dc;
   --dry: #6e4458;
   --dry-bg: #f8e5ed;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not([data-theme="pink"]) {
-    color-scheme: dark;
-    --ground: #0f161d;
-    --panel: #17212b;
-    --ink: #e4ebf1;
-    --muted: #93a3b1;
-    --line: #2a3744;
-    --accent: #6cb4f0;
-    --rain: #7fc0f5;
-    --rain-bg: #173450;
-    --snow: #b6abf5;
-    --snow-bg: #2b2650;
-    --storm: #f4a07a;
-    --storm-bg: #45251a;
-    --dry: #a9b7c3;
-    --dry-bg: #222e39;
-  }
 }
 * { box-sizing: border-box; }
 body {
@@ -130,36 +127,19 @@ h1 {
   padding: 4px 10px;
   cursor: pointer;
 }
-.theme-switch {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-}
-.theme-switch button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font: 500 13px var(--font-body);
-  color: var(--muted);
-  background: none;
-  border: 0;
-  border-radius: 999px;
-  padding: 3px 10px;
-  cursor: pointer;
-}
-.theme-switch button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
-.theme-switch .swatch {
-  width: 10px;
-  height: 10px;
+/* Theme switch: reuses the .chip/.unit pill style below, in a smaller header size */
+.theme-switch { display: flex; gap: 4px; }
+.theme-switch .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 10px; }
+/* Each swatch is half that theme's ground, half its accent */
+.swatch {
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
 }
-.swatch.light { background: #ffffff; }
-.swatch.dark { background: #17212b; }
-.swatch.pink { background: #f06a9f; }
+.swatch.light { background: linear-gradient(135deg, var(--light-ground) 50%, var(--light-accent) 50%); }
+.swatch.dark { background: linear-gradient(135deg, var(--dark-ground) 50%, var(--dark-accent) 50%); }
+.swatch.pink { background: linear-gradient(135deg, var(--pink-ground) 50%, var(--pink-accent) 50%); }
 
 .summary {
   display: grid;
@@ -187,7 +167,7 @@ h1 {
 }
 .controls input[type="search"] { flex: 1 1 220px; min-width: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip, .unit {
+.chip, .unit, .toggle {
   font: 500 14px var(--font-body);
   color: var(--ink);
   background: var(--panel);
@@ -196,7 +176,7 @@ h1 {
   padding: 6px 14px;
   cursor: pointer;
 }
-.chip[aria-pressed="true"], .unit[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.chip[aria-pressed="true"], .unit[aria-pressed="true"], .toggle[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
 .chip .n { font-family: var(--font-data); font-size: 12px; opacity: 0.75; margin-left: 4px; }
 .units { display: flex; gap: 4px; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -259,9 +239,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 footer { font-size: 13px; color: var(--muted); }
 footer a { color: var(--accent); }
 @media (prefers-reduced-motion: no-preference) {
-  body, .stat, .chip, .unit, .pill { transition: background-color 0.2s, color 0.2s; }
+  body, .stat, .chip, .unit, .toggle, .pill { transition: background-color 0.2s, color 0.2s; }
   .card { transition: border-color 0.15s, background-color 0.2s, color 0.2s; }
-  .theme-switch, .theme-switch button { transition: background-color 0.2s, color 0.2s; }
   .card:hover { border-color: var(--accent); }
 }
 </style>
@@ -277,9 +256,9 @@ footer a { color: var(--accent); }
       <div id="updated">Loading…</div>
       <div class="stamp-actions">
         <div class="theme-switch" role="group" aria-label="Theme">
-          <button type="button" data-theme="light" aria-pressed="false"><span class="swatch light" aria-hidden="true"></span>Light</button>
-          <button type="button" data-theme="dark" aria-pressed="false"><span class="swatch dark" aria-hidden="true"></span>Dark</button>
-          <button type="button" data-theme="pink" aria-pressed="false"><span class="swatch pink" aria-hidden="true"></span>Pink</button>
+          <button class="toggle" type="button" data-t="light" aria-pressed="false"><span class="swatch light" aria-hidden="true"></span>Light</button>
+          <button class="toggle" type="button" data-t="dark" aria-pressed="false"><span class="swatch dark" aria-hidden="true"></span>Dark</button>
+          <button class="toggle" type="button" data-t="pink" aria-pressed="false"><span class="swatch pink" aria-hidden="true"></span>Pink</button>
         </div>
         <button id="refresh" type="button">Refresh now</button>
       </div>
@@ -670,21 +649,23 @@ document.getElementById("q").addEventListener("input", e => { state.q = e.target
 document.getElementById("refresh").addEventListener("click", load);
 
 // Theme switch (light / dark / pink): a saved choice wins; otherwise follow the OS
-const themeButtons = document.querySelectorAll(".theme-switch button");
+// (THEMES, savedTheme and osTheme come from the script in <head>)
+const themeButtons = document.querySelectorAll(".theme-switch .toggle");
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  themeButtons.forEach(b => b.setAttribute("aria-pressed", b.dataset.theme === theme));
+  themeButtons.forEach(b => b.setAttribute("aria-pressed", b.dataset.t === theme));
 }
-applyTheme(document.documentElement.dataset.theme || "light");
+const startTheme = document.documentElement.dataset.theme;
+applyTheme(THEMES.includes(startTheme) ? startTheme : savedTheme() || osTheme());
 themeButtons.forEach(b => b.addEventListener("click", () => {
-  applyTheme(b.dataset.theme);
-  try { localStorage.setItem("rc-theme", b.dataset.theme); } catch (e) {}
+  applyTheme(b.dataset.t);
+  try { localStorage.setItem("rc-theme", b.dataset.t); } catch (e) {}
 }));
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
-  let saved = null;
-  try { saved = localStorage.getItem("rc-theme"); } catch (err) {}
-  if (!saved) applyTheme(e.matches ? "dark" : "light");
-});
+try {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (!savedTheme()) applyTheme(osTheme());
+  });
+} catch (e) {}
 
 render();
 load();
