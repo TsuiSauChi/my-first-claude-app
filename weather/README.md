@@ -7,7 +7,7 @@ A one-page weather dashboard. It shows the current weather in the capital city o
 - A summary strip: how many capitals have rain or snow right now, and the hottest and coldest capital.
 - A card for each capital with temperature, conditions, local time, rainfall, humidity and wind.
 - Search by country or capital, filter by Raining / Snowing / Dry, and sort by name, temperature or rainfall.
-- °C / °F switch and a light / dark theme switch. Both choices are remembered in your browser.
+- °C / °F switch and a Light / Dark / Pink theme switch. Both choices are remembered in your browser.
 - Data refreshes every 15 minutes, or whenever you press **Refresh now**.
 
 Weather data comes from [Open-Meteo](https://open-meteo.com/), which is free and needs no API key.

@@ -9,8 +9,10 @@
   (function () {
     var saved = null;
     try { saved = localStorage.getItem("rc-theme"); } catch (e) {}
-    var dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    if (saved !== "light" && saved !== "dark" && saved !== "pink") {
+      saved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.dataset.theme = saved;
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,8 +36,6 @@
   --storm-bg: #fbe6db;
   --dry: #44535f;
   --dry-bg: #e9eef2;
-  --switch-track: #7d8d9b;
-  --switch-thumb: #ffffff;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -57,11 +57,27 @@
   --storm-bg: #45251a;
   --dry: #a9b7c3;
   --dry-bg: #222e39;
-  --switch-track: #6cb4f0;
-  --switch-thumb: #0f161d;
+}
+/* Pink palette: rose-tinted light theme; weather colors keep their meaning, all text pairs pass WCAG AA */
+:root[data-theme="pink"] {
+  color-scheme: light;
+  --ground: #fdf1f5;
+  --panel: #ffffff;
+  --ink: #2d1621;
+  --muted: #7a4a5f;
+  --line: #f0d2de;
+  --accent: #b8336a;
+  --rain: #1d5c96;
+  --rain-bg: #e4eefa;
+  --snow: #5a3fa3;
+  --snow-bg: #eee7fb;
+  --storm: #9a3412;
+  --storm-bg: #fce5dc;
+  --dry: #6e4458;
+  --dry-bg: #f8e5ed;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme="light"]):not([data-theme="pink"]) {
     color-scheme: dark;
     --ground: #0f161d;
     --panel: #17212b;
@@ -77,8 +93,6 @@
     --storm-bg: #45251a;
     --dry: #a9b7c3;
     --dry-bg: #222e39;
-    --switch-track: #6cb4f0;
-    --switch-thumb: #0f161d;
   }
 }
 * { box-sizing: border-box; }
@@ -116,36 +130,36 @@ h1 {
   padding: 4px 10px;
   cursor: pointer;
 }
-.theme-toggle {
+.theme-switch {
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font: 500 13px var(--font-body);
-  color: var(--ink);
-  background: none;
+  gap: 2px;
+  padding: 2px;
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 3px 10px 3px 4px;
+}
+.theme-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 13px var(--font-body);
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 3px 10px;
   cursor: pointer;
 }
-.theme-toggle .track {
-  position: relative;
-  width: 34px;
-  height: 20px;
-  border-radius: 999px;
-  background: var(--switch-track);
-}
-.theme-toggle .thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
+.theme-switch button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
+.theme-switch .swatch {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: var(--switch-thumb);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
-.theme-toggle[aria-checked="true"] .thumb { transform: translateX(14px); }
+.swatch.light { background: #ffffff; }
+.swatch.dark { background: #17212b; }
+.swatch.pink { background: #f06a9f; }
 
 .summary {
   display: grid;
@@ -247,8 +261,7 @@ footer a { color: var(--accent); }
 @media (prefers-reduced-motion: no-preference) {
   body, .stat, .chip, .unit, .pill { transition: background-color 0.2s, color 0.2s; }
   .card { transition: border-color 0.15s, background-color 0.2s, color 0.2s; }
-  .theme-toggle .thumb { transition: transform 0.15s, background-color 0.2s; }
-  .theme-toggle .track { transition: background-color 0.2s; }
+  .theme-switch, .theme-switch button { transition: background-color 0.2s, color 0.2s; }
   .card:hover { border-color: var(--accent); }
 }
 </style>
@@ -263,10 +276,11 @@ footer a { color: var(--accent); }
     <div class="stamp">
       <div id="updated">Loading…</div>
       <div class="stamp-actions">
-        <button id="theme-toggle" class="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Dark mode">
-          <span class="track" aria-hidden="true"><span class="thumb"></span></span>
-          <span id="theme-label" aria-hidden="true">Light</span>
-        </button>
+        <div class="theme-switch" role="group" aria-label="Theme">
+          <button type="button" data-theme="light" aria-pressed="false"><span class="swatch light" aria-hidden="true"></span>Light</button>
+          <button type="button" data-theme="dark" aria-pressed="false"><span class="swatch dark" aria-hidden="true"></span>Dark</button>
+          <button type="button" data-theme="pink" aria-pressed="false"><span class="swatch pink" aria-hidden="true"></span>Pink</button>
+        </div>
         <button id="refresh" type="button">Refresh now</button>
       </div>
     </div>
@@ -655,19 +669,17 @@ document.getElementById("sort").addEventListener("change", e => { state.sort = e
 document.getElementById("q").addEventListener("input", e => { state.q = e.target.value; render(); });
 document.getElementById("refresh").addEventListener("click", load);
 
-// Theme toggle: a saved choice wins; otherwise follow the OS
-const themeToggle = document.getElementById("theme-toggle");
+// Theme switch (light / dark / pink): a saved choice wins; otherwise follow the OS
+const themeButtons = document.querySelectorAll(".theme-switch button");
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  themeToggle.setAttribute("aria-checked", theme === "dark");
-  document.getElementById("theme-label").textContent = theme === "dark" ? "Dark" : "Light";
+  themeButtons.forEach(b => b.setAttribute("aria-pressed", b.dataset.theme === theme));
 }
 applyTheme(document.documentElement.dataset.theme || "light");
-themeToggle.addEventListener("click", () => {
-  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  applyTheme(next);
-  try { localStorage.setItem("rc-theme", next); } catch (e) {}
-});
+themeButtons.forEach(b => b.addEventListener("click", () => {
+  applyTheme(b.dataset.theme);
+  try { localStorage.setItem("rc-theme", b.dataset.theme); } catch (e) {}
+}));
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
   let saved = null;
   try { saved = localStorage.getItem("rc-theme"); } catch (err) {}
