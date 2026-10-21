@@ -5,21 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rain Check</title>
 <script>
-  // Theme helpers, shared with the theme switch script at the end of the page.
+  // Theme helpers under one namespace, shared with the theme switch script at the end of the page.
   // Only the three known names count as a saved choice; anything else falls back to the OS.
-  var THEMES = ["light", "dark", "pink"];
-  function savedTheme() {
-    try {
-      var t = localStorage.getItem("rc-theme");
-      return THEMES.indexOf(t) >= 0 ? t : null;
-    } catch (e) { return null; }
-  }
-  function osTheme() {
-    try { return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }
-    catch (e) { return "light"; }
-  }
+  window.rcTheme = {
+    names: ["light", "dark", "pink"],
+    // The choice made in this tab, kept even when storage is blocked and setItem fails
+    choice: null,
+    saved: function () {
+      try {
+        var t = localStorage.getItem("rc-theme");
+        return rcTheme.names.indexOf(t) >= 0 ? t : null;
+      } catch (e) { return null; }
+    },
+    os: function () {
+      try { return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }
+      catch (e) { return "light"; }
+    }
+  };
   // Apply the theme before first paint so the page never flashes the wrong one
-  document.documentElement.dataset.theme = savedTheme() || osTheme();
+  document.documentElement.dataset.theme = rcTheme.saved() || rcTheme.os();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -55,8 +59,7 @@
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-data: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
 }
-/* Dark palette: set by the theme switch, or by the OS when no choice is saved
-   (the script in <head> always sets data-theme, so no prefers-color-scheme copy is needed) */
+/* Dark palette: set by the theme switch, or by the OS when no choice is saved */
 :root[data-theme="dark"] {
   color-scheme: dark;
   --ground: var(--dark-ground);
@@ -73,6 +76,26 @@
   --storm-bg: #45251a;
   --dry: #a9b7c3;
   --dry-bg: #222e39;
+}
+/* No-JS fallback: if the <head> script never ran, data-theme is missing, so follow the OS here */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --ground: var(--dark-ground);
+    --panel: #17212b;
+    --ink: #e4ebf1;
+    --muted: #93a3b1;
+    --line: #2a3744;
+    --accent: var(--dark-accent);
+    --rain: #7fc0f5;
+    --rain-bg: #173450;
+    --snow: #b6abf5;
+    --snow-bg: #2b2650;
+    --storm: #f4a07a;
+    --storm-bg: #45251a;
+    --dry: #a9b7c3;
+    --dry-bg: #222e39;
+  }
 }
 /* Pink palette: rose-tinted light theme; weather colors keep their meaning, all text pairs pass WCAG AA */
 :root[data-theme="pink"] {
@@ -118,18 +141,10 @@ h1 {
 .sub { color: var(--muted); margin: 6px 0 0; max-width: 60ch; }
 .stamp { font: 13px var(--font-data); color: var(--muted); text-align: right; display: grid; justify-items: end; gap: 6px; }
 .stamp-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; }
-#refresh {
-  font: 500 13px var(--font-body);
-  color: var(--accent);
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 4px 10px;
-  cursor: pointer;
-}
-/* Theme switch: reuses the .chip/.unit pill style below, in a smaller header size */
+/* Theme switch and refresh: reuse the .chip/.unit pill style below, in a smaller header size */
 .theme-switch { display: flex; gap: 4px; }
-.theme-switch .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 10px; }
+.stamp-actions #refresh { color: var(--accent); }
+.theme-switch .toggle, .stamp-actions #refresh { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 10px; }
 /* Each swatch is half that theme's ground, half its accent */
 .swatch {
   width: 12px;
@@ -167,7 +182,7 @@ h1 {
 }
 .controls input[type="search"] { flex: 1 1 220px; min-width: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip, .unit, .toggle {
+.chip, .unit, .toggle, #refresh {
   font: 500 14px var(--font-body);
   color: var(--ink);
   background: var(--panel);
@@ -649,23 +664,32 @@ document.getElementById("q").addEventListener("input", e => { state.q = e.target
 document.getElementById("refresh").addEventListener("click", load);
 
 // Theme switch (light / dark / pink): a saved choice wins; otherwise follow the OS
-// (THEMES, savedTheme and osTheme come from the script in <head>)
+// (rcTheme comes from the script in <head>, which has already set data-theme)
 const themeButtons = document.querySelectorAll(".theme-switch .toggle");
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   themeButtons.forEach(b => b.setAttribute("aria-pressed", b.dataset.t === theme));
 }
-const startTheme = document.documentElement.dataset.theme;
-applyTheme(THEMES.includes(startTheme) ? startTheme : savedTheme() || osTheme());
+applyTheme(document.documentElement.dataset.theme);
 themeButtons.forEach(b => b.addEventListener("click", () => {
-  applyTheme(b.dataset.t);
-  try { localStorage.setItem("rc-theme", b.dataset.t); } catch (e) {}
+  rcTheme.choice = b.dataset.t;
+  applyTheme(rcTheme.choice);
+  try { localStorage.setItem("rc-theme", rcTheme.choice); } catch (e) {}
 }));
+// Follow OS changes only while no choice has been made in this tab or saved by another
 try {
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    if (!savedTheme()) applyTheme(osTheme());
-  });
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const onOsChange = () => { if (!rcTheme.choice && !rcTheme.saved()) applyTheme(rcTheme.os()); };
+  // Safari before 14 only has the older addListener
+  if (mq.addEventListener) mq.addEventListener("change", onOsChange);
+  else mq.addListener(onOsChange);
 } catch (e) {}
+// A choice made in another tab applies here too; clearing it there hands this tab back to the OS
+window.addEventListener("storage", e => {
+  if (e.key !== "rc-theme" && e.key !== null) return;
+  rcTheme.choice = rcTheme.saved();
+  applyTheme(rcTheme.choice || rcTheme.os());
+});
 
 render();
 load();
