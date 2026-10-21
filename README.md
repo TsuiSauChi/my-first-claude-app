@@ -22,3 +22,9 @@ python3 -m venv .venv
 **Rain Check** (needs only a browser and internet): open `weather/index.html` in your browser.
 
 Each folder's README has the full instructions and details.
+
+## Emoji log
+
+One new emoji for every push to GitHub.
+
+- 🤖 2026-10-21 — Add CLAUDE.md, code-reviewer subagent and push-emoji skill
